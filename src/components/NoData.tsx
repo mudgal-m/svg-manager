@@ -1,10 +1,12 @@
 interface Props {
   onAdd: () => void;
   buttonLabel: string;
+  className?: string;
 }
-export default function ({ onAdd, buttonLabel }: Props) {
+export default function ({ onAdd, buttonLabel, className }: Props) {
   return (
-    <div className=" min-h-[80vh] flex flex-col justify-center items-center">
+    <div
+      className={`min-h-[80vh] flex flex-col justify-center items-center ${className}`}>
       <img className="mx-auto" src="./nodata.png" alt="No Data Placeholder" />
       <div
         onClick={onAdd}

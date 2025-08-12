@@ -22,3 +22,5 @@ export function useCtrlV(callback: CtrlVCallback): void {
     };
   }, [callback]);
 }
+export const isValidSvg = (text: string) =>
+  /<svg[^>]*>[\s\S]*<\/svg>/i.test(text);
