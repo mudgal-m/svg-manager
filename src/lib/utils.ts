@@ -24,3 +24,39 @@ export function useCtrlV(callback: CtrlVCallback): void {
 }
 export const isValidSvg = (text: string) =>
   /<svg[^>]*>[\s\S]*<\/svg>/i.test(text);
+
+interface SvgPreProcessorProps {
+  svgCode: string;
+  id: string | number;
+}
+
+export const preProcessor = ({ svgCode, id }: SvgPreProcessorProps): string => {
+  if (!id) return svgCode; // Safety: If id is missing, return untouched
+
+  const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/i;
+  const styleMatch = styleRegex.exec(svgCode);
+  const uniquePrefix = `svg-${id}-`;
+
+  if (styleMatch?.[1]) {
+    const styles = styleMatch[1];
+
+    // Prefix styles
+    const prefixedStyles = styles.replace(
+      /\.([a-zA-Z0-9_-]+)/g,
+      `.${uniquePrefix}$1`
+    );
+
+    // Replace style tag content
+    svgCode = svgCode.replace(styleMatch[0], `<style>${prefixedStyles}</style>`);
+
+    // Prefix class attributes
+    svgCode = svgCode.replace(/class="([^"]+)"/g, (_, classNames: string) => {
+      return `class="${classNames
+        .split(/\s+/)
+        .map((cls) => `${uniquePrefix}${cls}`)
+        .join(" ")}"`;
+    });
+  }
+
+  return svgCode;
+};

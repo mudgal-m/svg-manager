@@ -4,6 +4,7 @@ import { Trash2 } from "lucide-react";
 import InlineSvg from "react-inlinesvg";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
+import { preProcessor } from "@/lib/utils";
 
 interface Props extends Svg {
   onDelete: () => void;
@@ -27,7 +28,10 @@ export function SvgCard({ code, id, onDelete }: Props) {
       title="Click to Copy"
       onClick={handleCopy}
       className={`relative active:shadow-none group rounded-lg flex gap-4 flex-col items-center justify-center duration-75 aspect-square cursor-pointer transition-all border p-2 hover:border-primary hover:shadow-xl shadow-accent hover:text-accent-foreground`}>
-      <InlineSvg className={`${sizeClass} duration-150`} src={code} />
+      <InlineSvg 
+     preProcessor={(svgCode: string) =>preProcessor({svgCode,id})}
+    
+      className={`${sizeClass} duration-150`} src={code} />
 
       <Button
         title="Delete Icon"
