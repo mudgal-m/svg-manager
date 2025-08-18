@@ -16,6 +16,7 @@ interface SvgManagerDB extends DBSchema {
       id: string;
       code: string; // SVG code text
       folderId?: string; // optional, null means root
+      name?:string;
       createdAt: number;
     };
     indexes: { "by-folder": string; "by-name": string };
@@ -27,25 +28,49 @@ export type Svg = {
   id: string;
   code: string;
   folderId?: string;
+  name?:string
 };
 
 let dbPromise: Promise<IDBPDatabase<SvgManagerDB>>;
 
 function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB<SvgManagerDB>("svg-manager-db", 1, {
-      upgrade(db) {
-        const folderStore = db.createObjectStore("folders", { keyPath: "id" });
-        folderStore.createIndex("by-name", "name");
-
-        const svgStore = db.createObjectStore("svgs", { keyPath: "id" });
-        svgStore.createIndex("by-folder", "folderId");
-        svgStore.createIndex("by-name", "name");
-      },
+    dbPromise = openDB<SvgManagerDB>("svg-manager-db", 3, {
+      upgrade(db, oldVersion, _, tx) {
+        // Create stores if missing
+        if (!db.objectStoreNames.contains("folders")) {
+          const folderStore = db.createObjectStore("folders", { keyPath: "id" });
+          folderStore.createIndex("by-name", "name");
+        }
+      
+        if (!db.objectStoreNames.contains("svgs")) {
+          const svgStore = db.createObjectStore("svgs", { keyPath: "id" });
+          svgStore.createIndex("by-folder", "folderId");
+          svgStore.createIndex("by-name", "name");
+        }
+      
+        // ✅ Migration step 2 → ensure every svg has a name
+        if (oldVersion < 2) {
+          const store = tx.objectStore("svgs");
+          store.openCursor().then(async function iterate(cursor): Promise<void> {
+            if (!cursor) return;
+            const value = cursor.value as any;
+            if (!value.name) {
+              value.name = `icon-${Math.random().toString(36).slice(2, 8)}`;
+              await cursor.update(value);
+            }
+            return cursor.continue().then(iterate);
+          });
+        }
+      
+        // future migrations: if (oldVersion < 3) { … }
+      }
+      
     });
   }
   return dbPromise;
 }
+
 
 export async function addFolder(name: string) {
   const db = await getDB();
@@ -89,14 +114,17 @@ export async function deleteFolder(id: string) {
 export async function addSvg({
   code,
   folderId,
+  name,
 }: {
   code: string;
   folderId?: string;
+  name?: string;
 }) {
   const db = await getDB();
   const svg = {
     id: crypto.randomUUID(),
     code,
+    name: name ?? `icon-${Math.random().toString(36).slice(2, 8)}`,
     folderId,
     createdAt: Date.now(),
   };
@@ -104,9 +132,18 @@ export async function addSvg({
   return svg;
 }
 
+export async function updateSvgName(id: string, newName: string) {
+  const db = await getDB();
+  const svg = await db.get("svgs", id);
+  if (!svg) throw new Error("SVG not found");
+  svg.name = newName;
+  await db.put("svgs", svg);
+}
+
+
 export async function getSvgs(
   folderId?: string
-): Promise<Array<{ id: string; code: string; folderId?: string }>> {
+): Promise<Array<Svg>> {
   const db = await getDB();
 
   if (folderId) {
