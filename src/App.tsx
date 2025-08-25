@@ -69,7 +69,7 @@ export default function Home() {
         toast.error(`File "${file.name}" is not a valid SVG`);
         continue;
       }
-      await addSvg({ code: text });
+      await addSvg({ code: text ,name:file.name});
     }
     toast.success(`Added ${svgFiles.length} SVG file(s)`);
     fetchData();

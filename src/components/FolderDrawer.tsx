@@ -44,7 +44,7 @@ export default function FolderDrawer({ id, name }: Folder) {
         toast.error(`File "${file.name}" is not a valid SVG`);
         continue;
       }
-      await addSvg({ code: text, folderId: id });
+      await addSvg({ code: text, folderId: id ,name:file.name});
     }
     toast.success(`Added ${svgFiles.length} SVG file(s)`);
     fetchData();
