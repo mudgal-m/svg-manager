@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderInput, Trash2, X } from "lucide-react";
-import { deleteSvgs, getFolders, moveSvgs } from "../lib/db";
+import { CheckSquare, ChevronDown, FolderInput, Home, Trash2, X } from "lucide-react";
+import { useState } from "react";
+import { deleteSvgs, getFolders, moveSvgs, type Svg } from "../lib/db";
 import { useSelection } from "../lib/selection";
 
 export function SelectionToolbar() {
+  const [moveOpen, setMoveOpen] = useState(false);
   const queryClient = useQueryClient();
-  const { isSelecting, selectedIds, currentFolderId, clearSelection, requestRefresh, setIsSelecting } = useSelection();
+  const { isSelecting, selectedIds, currentFolderId, clearSelection, requestRefresh, setIsSelecting, setSelectedIds } = useSelection();
   const foldersQuery = useQuery({
     queryKey: ["folders"],
     queryFn: getFolders,
@@ -35,26 +37,54 @@ export function SelectionToolbar() {
 
   if (!isSelecting || !selectedIds.length) return null;
 
+  const moveTo = (folderId: string) => {
+    setMoveOpen(false);
+    moveMutation.mutate(folderId);
+  };
+
+  const selectAll = () => {
+    const cacheKey = ["svgs", currentFolderId ?? "root"];
+    const svgs = queryClient.getQueryData<Svg[]>(cacheKey) ?? [];
+    setSelectedIds(svgs.map((svg) => svg.id));
+  };
+
   return (
     <div className="selection-toolbar" role="toolbar" aria-label="Selected icon actions">
       <button className="icon-button" onClick={cancel} title="Cancel selection">
         <X size={17} />
       </button>
       <span className="selected-count">{selectedIds.length} selected</span>
-      <label className="move-control">
-        <FolderInput size={16} />
-        <select value="" aria-label="Move selected icons" onChange={(event) => event.target.value && moveMutation.mutate(event.target.value)}>
-          <option value="">Move to</option>
-          <option value="__root">Root icons</option>
-          {folders
-            .filter((folder) => folder.id !== currentFolderId)
-            .map((folder) => (
-              <option key={folder.id} value={folder.id}>
-                {folder.name}
-              </option>
-            ))}
-        </select>
-      </label>
+      <button className="button select-all-button" onClick={selectAll}>
+        <CheckSquare size={16} /> Select all
+      </button>
+      <div className="move-menu-wrap">
+        <button className="move-control" onClick={() => setMoveOpen((open) => !open)}>
+          Move to
+          <ChevronDown size={14} />
+        </button>
+        {moveOpen && (
+          <div className="move-menu">
+            <button onClick={() => moveTo("__root")} disabled={!currentFolderId}>
+              <Home size={15} />
+              <span>Root icons</span>
+            </button>
+            <div className="move-menu-divider" />
+            <div className="move-menu-label">Folders</div>
+            {folders.filter((folder) => folder.id !== currentFolderId).length ? (
+              folders
+                .filter((folder) => folder.id !== currentFolderId)
+                .map((folder) => (
+                  <button key={folder.id} onClick={() => moveTo(folder.id)}>
+                    <FolderInput size={15} />
+                    <span>{folder.name}</span>
+                  </button>
+                ))
+            ) : (
+              <div className="move-menu-empty">No other folders</div>
+            )}
+          </div>
+        )}
+      </div>
       <button className="button danger-button" onClick={() => deleteMutation.mutate()}>
         <Trash2 size={16} /> Delete
       </button>

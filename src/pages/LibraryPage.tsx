@@ -1,10 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, FolderPlus, Plus } from "lucide-react";
+import {
+  ChevronRight,
+  FolderPlus,
+  Grid2X2,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
 import { FolderCard } from "../components/FolderCard";
 import { IconGrid } from "../components/IconGrid";
+import { ThemePicker } from "../components/ThemePicker";
 import { addFolder, addSvg, getFolders, getSvgs } from "../lib/db";
 import { useSelection } from "../lib/selection";
 import { iconNameFromFile, isValidSvg, useCtrlV } from "../lib/utils";
@@ -18,6 +26,7 @@ export function LibraryPage() {
   const queryClient = useQueryClient();
   const { isSelecting, setCurrentFolderId } = useSelection();
   const [message, setMessage] = useState("");
+  const [search, setSearch] = useState("");
 
   const foldersQuery = useQuery({
     queryKey: foldersKey,
@@ -31,6 +40,16 @@ export function LibraryPage() {
 
   const folders = foldersQuery.data ?? [];
   const svgs = svgsQuery.data ?? [];
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredFolders =
+    isHome && normalizedSearch
+      ? folders.filter((item) =>
+          item.name.toLowerCase().includes(normalizedSearch),
+        )
+      : folders;
+  const filteredSvgs = normalizedSearch
+    ? svgs.filter((item) => item.name.toLowerCase().includes(normalizedSearch))
+    : svgs;
   const folder = useMemo(
     () => folders.find((item) => item.id === folderId),
     [folderId, folders],
@@ -41,7 +60,7 @@ export function LibraryPage() {
   }, [folderId, queryClient]);
 
   const addFolderMutation = useMutation({
-    mutationFn: () => addFolder(`New Folder ${folders.length + 1}`),
+    mutationFn: (name: string) => addFolder(name),
     onSuccess: async () => {
       setMessage("");
       await queryClient.invalidateQueries({ queryKey: foldersKey });
@@ -56,6 +75,15 @@ export function LibraryPage() {
       await invalidateIcons();
     },
   });
+
+  const createFolder = () => {
+    const name = window.prompt(
+      "Folder name",
+      `New Folder ${folders.length + 1}`,
+    );
+    if (!name?.trim()) return;
+    addFolderMutation.mutate(name.trim());
+  };
 
   const addFromClipboard = useCallback(async () => {
     const text = await navigator.clipboard.readText();
@@ -111,40 +139,67 @@ export function LibraryPage() {
         void handleFiles(event.dataTransfer.files);
       }}>
       <div className="library-topline">
-        <nav className="breadcrumb" aria-label="Breadcrumb">
-          <Link to="/">Home</Link>
-          {!isHome && (
-            <>
-              <ChevronRight size={15} />
-              <span>{folder?.name ?? "Folder"}</span>
-            </>
-          )}
-        </nav>
+        <div className="library-topline-inner">
+          <div className="brand mini-brand">
+            <span className="brand-mark">
+              <Grid2X2 size={17} />
+            </span>
+            <span>Iconicon</span>
+          </div>
 
-        <div className="page-actions">
-          {isHome && (
+          <div className="search-wrap">
+            <Search size={15} />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={isHome ? "Search folders and icons" : "Search icons"}
+            />
+            {search && (
+              <button
+                className="search-clear"
+                onClick={() => setSearch("")}
+                aria-label="Clear search">
+                <X />
+              </button>
+            )}
+          </div>
+
+          <div className="page-actions">
+            {isHome && (
+              <button
+                className="button soft"
+                onClick={createFolder}
+                disabled={addFolderMutation.isPending}>
+                <FolderPlus size={15} /> Add Folder
+              </button>
+            )}
             <button
-              className="button soft"
-              onClick={() => addFolderMutation.mutate()}
-              disabled={addFolderMutation.isPending}>
-              <FolderPlus size={15} /> Add Folder
+              className="button primary"
+              onClick={addFromClipboard}
+              disabled={addSvgMutation.isPending}>
+              <Plus size={15} /> Add SVG
             </button>
-          )}
-          <button
-            className="button primary"
-            onClick={addFromClipboard}
-            disabled={addSvgMutation.isPending}>
-            <Plus size={15} /> Add SVG
-          </button>
+            <ThemePicker />
+          </div>
         </div>
       </div>
 
+      <nav className="breadcrumb" aria-label="Breadcrumb">
+        <Link to="/">Home</Link>
+        {!isHome && (
+          <>
+            <ChevronRight size={15} />
+            <span>{folder?.name ?? "Folder"}</span>
+          </>
+        )}
+      </nav>
+
       {message && <p className="inline-message">{message}</p>}
 
-      {isHome && folders.length > 0 && (
+      {isHome && filteredFolders.length > 0 && (
         <section className="library-section compact-section">
           <div className="folder-grid">
-            {folders.map((item) => (
+            {filteredFolders.map((item) => (
               <FolderCard
                 key={item.id}
                 folder={item}
@@ -161,11 +216,20 @@ export function LibraryPage() {
       <section className="library-section">
         {svgsQuery.isLoading ? (
           <div className="soft-loading">Loading icons...</div>
-        ) : svgs.length ? (
-          <IconGrid svgs={svgs} onChanged={() => void invalidateIcons()} />
+        ) : filteredSvgs.length ? (
+          <IconGrid
+            svgs={filteredSvgs}
+            onChanged={() => void invalidateIcons()}
+          />
         ) : (
           <EmptyState
-            title={isHome ? "No icons yet" : "No icons in this folder"}
+            title={
+              normalizedSearch
+                ? "No matches found"
+                : isHome
+                  ? "No icons yet"
+                  : "No icons in this folder"
+            }
             actionLabel="Add SVG"
             onAction={addFromClipboard}
           />

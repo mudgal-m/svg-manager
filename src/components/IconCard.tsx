@@ -6,6 +6,7 @@ import { preProcessor } from "../lib/utils";
 
 export function IconCard({ svg, onChanged }: { svg: Svg; onChanged: () => void }) {
   const [menuPoint, setMenuPoint] = useState<{ x: number; y: number } | null>(null);
+  const [copied, setCopied] = useState(false);
   const { isSelecting, selectedIds, setIsSelecting, setSelectedIds, toggleSelected } = useSelection();
   const selected = selectedIds.includes(svg.id);
 
@@ -16,6 +17,9 @@ export function IconCard({ svg, onChanged }: { svg: Svg; onChanged: () => void }
     }
 
     await navigator.clipboard.writeText(svg.code);
+    setMenuPoint(null);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1100);
   };
 
   const rename = async () => {
@@ -49,10 +53,11 @@ export function IconCard({ svg, onChanged }: { svg: Svg; onChanged: () => void }
         }}
       >
         {isSelecting && (
-          <span className="check-wrap" aria-hidden="true">
+          <span className={`check-wrap ${selected ? "checked" : ""}`} aria-hidden="true">
             {selected ? <Check size={15} /> : null}
           </span>
         )}
+        {copied && <span className="copy-badge">Copied</span>}
         <div
           className="icon-preview"
           dangerouslySetInnerHTML={{ __html: preProcessor({ svgCode: svg.code, id: svg.id }) }}
