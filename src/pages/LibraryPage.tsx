@@ -31,7 +31,10 @@ export function LibraryPage() {
 
   const folders = foldersQuery.data ?? [];
   const svgs = svgsQuery.data ?? [];
-  const folder = useMemo(() => folders.find((item) => item.id === folderId), [folderId, folders]);
+  const folder = useMemo(
+    () => folders.find((item) => item.id === folderId),
+    [folderId, folders],
+  );
 
   const invalidateIcons = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: svgsKey(folderId) });
@@ -46,7 +49,8 @@ export function LibraryPage() {
   });
 
   const addSvgMutation = useMutation({
-    mutationFn: (payload: { code: string; name?: string }) => addSvg({ ...payload, folderId }),
+    mutationFn: (payload: { code: string; name?: string }) =>
+      addSvg({ ...payload, folderId }),
     onSuccess: async () => {
       setMessage("");
       await invalidateIcons();
@@ -65,7 +69,9 @@ export function LibraryPage() {
 
   const handleFiles = useCallback(
     async (files: FileList) => {
-      const svgFiles = Array.from(files).filter((file) => file.type === "image/svg+xml" || file.name.endsWith(".svg"));
+      const svgFiles = Array.from(files).filter(
+        (file) => file.type === "image/svg+xml" || file.name.endsWith(".svg"),
+      );
       if (!svgFiles.length) {
         setMessage("No SVG files detected.");
         return;
@@ -75,7 +81,10 @@ export function LibraryPage() {
       for (const file of svgFiles) {
         const code = await file.text();
         if (isValidSvg(code)) {
-          await addSvgMutation.mutateAsync({ code, name: iconNameFromFile(file.name) });
+          await addSvgMutation.mutateAsync({
+            code,
+            name: iconNameFromFile(file.name),
+          });
           added += 1;
         }
       }
@@ -100,8 +109,7 @@ export function LibraryPage() {
       onDrop={(event) => {
         event.preventDefault();
         void handleFiles(event.dataTransfer.files);
-      }}
-    >
+      }}>
       <div className="library-topline">
         <nav className="breadcrumb" aria-label="Breadcrumb">
           <Link to="/">Home</Link>
@@ -115,11 +123,17 @@ export function LibraryPage() {
 
         <div className="page-actions">
           {isHome && (
-            <button className="button soft" onClick={() => addFolderMutation.mutate()} disabled={addFolderMutation.isPending}>
+            <button
+              className="button soft"
+              onClick={() => addFolderMutation.mutate()}
+              disabled={addFolderMutation.isPending}>
               <FolderPlus size={15} /> Add Folder
             </button>
           )}
-          <button className="button primary" onClick={addFromClipboard} disabled={addSvgMutation.isPending}>
+          <button
+            className="button primary"
+            onClick={addFromClipboard}
+            disabled={addSvgMutation.isPending}>
             <Plus size={15} /> Add SVG
           </button>
         </div>
@@ -129,7 +143,6 @@ export function LibraryPage() {
 
       {isHome && folders.length > 0 && (
         <section className="library-section compact-section">
-          <div className="section-label">Folders</div>
           <div className="folder-grid">
             {folders.map((item) => (
               <FolderCard
@@ -146,13 +159,16 @@ export function LibraryPage() {
       )}
 
       <section className="library-section">
-        <div className="section-label">{isHome ? "Icons" : folder?.name ?? "Folder icons"}</div>
         {svgsQuery.isLoading ? (
           <div className="soft-loading">Loading icons...</div>
         ) : svgs.length ? (
           <IconGrid svgs={svgs} onChanged={() => void invalidateIcons()} />
         ) : (
-          <EmptyState title={isHome ? "No icons yet" : "No icons in this folder"} actionLabel="Add SVG" onAction={addFromClipboard} />
+          <EmptyState
+            title={isHome ? "No icons yet" : "No icons in this folder"}
+            actionLabel="Add SVG"
+            onAction={addFromClipboard}
+          />
         )}
       </section>
     </section>
